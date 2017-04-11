@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-route.js"></script>
+
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <title>Demo</title>
+    <meta name="description" content=""/>
+    <meta name="viewport" content="width=device-width"/>
+    <base href="/"/>
+    <link rel="stylesheet" type="text/css"
+          href="/webjars/bootstrap/css/bootstrap.min.css"/>
+    <script type="text/javascript" src="/webjars/jquery/jquery.min.js"></script>
+    <script type="text/javascript"
+            src="/webjars/bootstrap/js/bootstrap.min.js"></script>
+
+    <style type="text/css">
+        .color-red {
+            color: #ff5f7e;
+        }
+
+        .color-green {
+            color: #91f08c;
+        }
+
+        .logged {
+            color: #578df0;
+        }
+
+        td {
+            padding: 10px;
+        }
+    </style>
+
+</head>
+
+
+<body>
+
+<div ng-app="app">
+    <div class="row">
+
+        <div ng-controller="home as home">
+            <div class="col-sm-4">
+                <h3 align="center" ng-show="!home.authenticated">Login</h3>
+                <h3 align="center" ng-show="home.authenticated">Logout</h3>
+                <div class="container" ng-show="!home.authenticated">
+                    <div>
+                        Login with Github: <a href="/login/github">click here</a>
+                    </div>
+                </div>
+
+                <div class="container" ng-show="home.authenticated">
+                    Logged in as: <span ng-bind="home.user"></span>
+                    <div>
+                        <button ng-click="home.prepareAndLogout()" class="btn btn-primary">Logout</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-4">
+                <h3 align="center">Repositories</h3>
+
+                <div class="container" ng-show="!home.authenticated">
+                    Login to get your repositories
+                </div>
+
+                <div class="container" ng-show="home.authenticated">
+                    <table width="80">
+                        <tr ng-repeat="x in repositories">
+                            <td>{{ x.name }}</td>
+                            <td>{{ x.description }}</td>
+                        </tr>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="col-sm-4">
+            <div ng-controller="logController">
+                <h3 align="center">Login history</h3>
+
+                <table>
+                    <tr ng-repeat="x in logs">
+                        {{ console.log(x.type) }}
+                        <td>
+                            <span ng-class="{'logged': x.login === loggedUsername}">{{x.login}}</span>
+                        </td>
+                        <td>{{ x.date }}</td>
+                        <td>
+                            <span ng-class="{'color-red': x.type === 'logout', 'color-green': x.type === 'login'}">{{x.type}}</span>
+
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+
+    var app = angular.module("app", []).config(
+            function ($httpProvider) {
+                $httpProvider.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+            });
+
+    //Factory implementing Observer pattern
+    app.factory('notifyingService', function ($rootScope) {
+        return {
+            subscribe: function (scope, callback) {
+                var handler = $rootScope.$on('notifying-service-event', callback);
+                scope.$on('$destroy', handler);
+            },
+
+            notify: function () {
+                $rootScope.$emit('notifying-service-event');
+            }
+        };
+    });
+
+    //Service to share value between controllers
+    app.service('loggedUser', function ($http, notifyingService) {
+
+        var property = '';
+
+        return {
+            getProperty: function () {
+                return property;
+            },
+            setProperty: function (value) {
+                property = value;
+                notifyingService.notify();
+            }
+        };
+    });
+
+    app.controller("home", function ($scope, $http, $location, loggedUser) {
+        var self = this;
+
+        $http.get("/user").success(function (data) {
+            if (data.name) {
+                self.user = data.name;
+                loggedUser.setProperty(data.name)
+                self.authenticated = true;
+            } else {
+                self.user = "N/A";
+                loggedUser.setProperty("N/A")
+                self.authenticated = false;
+            }
+        }).error(function () {
+            self.user = "N/A";
+            loggedUser.setProperty("N/A")
+            self.authenticated = false;
+        });
+
+        $http.get("/repos").success(function (data) {
+            if (data.repositories) {
+                $scope.repositories = data.repositories
+            } else {
+                $scope.repos = "N/A"
+            }
+        }).error(function () {
+            console.log("Error fetching repositories!")
+        });
+
+
+        self.prepareAndLogout = function () {
+            loggedUser.setProperty('');
+            self.logout();
+        }
+
+        self.logout = function () {
+            $http.post('logout', {}).success(function () {
+                self.authenticated = false;
+                $location.path("/");
+            }).error(function (data) {
+                console.log("Logout failed");
+                self.authenticated = false;
+            });
+
+        };
+    });
+
+    app.controller('logController', function ($scope, $http, loggedUser, notifyingService) {
+
+        notifyingService.subscribe($scope, function (event, data) {
+            $scope.loggedUsername = loggedUser.getProperty()
+        })
+
+        $http.get("/logs").success(function (data) {
+            if (data.logs) {
+                $scope.loggedUsername = loggedUser.getProperty()
+                $scope.logNumber = data.logs.length
+                $scope.logs = data.logs
+            }
+        }).error(function () {
+            console.log("Error fetching logs!")
+        });
+    });
+
+</script>
+
+
+</body>
+</html>

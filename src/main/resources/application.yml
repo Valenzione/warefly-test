@@ -1,0 +1,27 @@
+
+security:
+  oauth2:
+    client:
+      client-id: acme
+      client-secret: acmesecret
+      scope: read,write
+      auto-approve-scopes: '.*'
+
+github:
+  client:
+    clientId: 059000f29c29a9570aff
+    clientSecret: 6e3b90bd37f92318b9074e1b1189b79a3a926198
+    accessTokenUri: https://github.com/login/oauth/access_token
+    userAuthorizationUri: https://github.com/login/oauth/authorize
+    clientAuthenticationScheme: form
+  resource:
+    userInfoUri: https://api.github.com/user
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://heroku_76pgrdhp:ud0vc4uvbncdqbtnkptrn74h9i@ds057806.mlab.com:57806/heroku_76pgrdhp
